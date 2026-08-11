@@ -1,88 +1,92 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, gql } from '@apollo/client';
-import { GET_ORG_WORKFLOWS } from '@/lib/graphql';
-import Link from 'next/link';
-import { useState } from 'react';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSignInEmailPassword, useSignUpEmailPassword } from "@nhost/react";
 
-const CREATE_WORKFLOW = gql`
-  mutation CreateWorkflow($name: string!, $org_id: uuid!) {
-    insert_workflows_one(object: { name: $name, org_id: $org_id }) {
-      id
-    }
-  }
-`;
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoginView, setIsLoginView] = useState(true);
+  const router = useRouter();
 
-export default function Dashboard() {
-  const { data, loading, error, refetch } = useQuery(GET_ORG_WORKFLOWS);
-  const [createWorkflow] = useMutation(CREATE_WORKFLOW);
-  const [newWorkflowName, setNewWorkflowName] = useState('');
+  // Nhost Authentication Hooks
+  const { signInEmailPassword, isLoading: isSignInLoading, error: signInError } = useSignInEmailPassword();
+  const { signUpEmailPassword, isLoading: isSignUpLoading, error: signUpError } = useSignUpEmailPassword();
 
-  if (loading) return <div className="text-center py-20 text-slate-400">Loading workflows...</div>;
-  if (error) return <div className="text-red-400 py-20">Error loading data: {error.message}</div>;
-
-  const workflows = data?.workflows || [];
-  const org = data?.organizations?.[0];
-
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newWorkflowName || !org) return;
-    await createWorkflow({ variables: { name: newWorkflowName, org_id: org.id } });
-    setNewWorkflowName('');
-    refetch();
+    
+    if (isLoginView) {
+      const { isSuccess } = await signInEmailPassword(email, password);
+      if (isSuccess) {
+        router.push("/"); // 🚀 This redirects you to the main page!
+      }
+    } else {
+      const { isSuccess } = await signUpEmailPassword(email, password);
+      if (isSuccess) {
+        router.push("/"); // 🚀 This redirects you to the main page!
+      }
+    }
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center border-b border-slate-800 pb-5">
-        <div>
-          <h1 className="text-3xl font-black text-white">Workflows</h1>
-          <p className="text-sm text-slate-400">Manage and automate AI step executions</p>
-        </div>
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "80vh", padding: "20px" }}>
+      {/* We are using the 'card' class we created in globals.css */}
+      <div className="card" style={{ width: "100%", maxWidth: "400px" }}>
+        
+        <h2 style={{ textAlign: "center", marginBottom: "2rem" }}>
+          {isLoginView ? "Sign In to AgentFlow" : "Create an Account"}
+        </h2>
 
-        <form onSubmit={handleCreate} className="flex space-x-2">
-          <input
-            type="text"
-            placeholder="New workflow name..."
-            value={newWorkflowName}
-            onChange={(e) => setNewWorkflowName(e.target.value)}
-            className="bg-slate-900 border border-slate-700 text-sm rounded px-3 py-2 text-white"
-          />
-          <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded transition">
-            + Create
-          </button>
-        </form>
-      </div>
+        <form onSubmit={handleAuth}>
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              required
+            />
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {workflows.map((wf: any) => {
-          const latestRun = wf.workflow_runs?.[0];
-          return (
-            <Link
-              key={wf.id}
-              href={`/workflows/${wf.id}`}
-              className="block bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-xl transition space-y-4"
+          <div style={{ marginBottom: "1.5rem" }}>
+            <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", fontWeight: "600" }}>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          {/* Display Errors if they happen */}
+          {(signInError || signUpError) && (
+            <p style={{ color: "#ef4444", fontSize: "0.875rem", marginBottom: "1rem", textAlign: "center" }}>
+              {signInError?.message || signUpError?.message}
+            </p>
+          )}
+
+          {/* Buttons Layout */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <button type="submit" disabled={isSignInLoading || isSignUpLoading}>
+              {isSignInLoading || isSignUpLoading 
+                ? "Please wait..." 
+                : (isLoginView ? "Sign In" : "Sign Up")}
+            </button>
+            
+            <button 
+              type="button" 
+              onClick={() => setIsLoginView(!isLoginView)}
+              style={{ backgroundColor: "transparent", color: "var(--primary)", border: "1px solid var(--primary)" }}
             >
-              <div className="flex justify-between items-start">
-                <h3 className="font-bold text-lg text-white">{wf.name}</h3>
-                {latestRun && (
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                    latestRun.status === 'completed' ? 'bg-green-950 text-green-400 border border-green-800' :
-                    latestRun.status === 'paused' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
-                    'bg-slate-800 text-slate-400'
-                  }`}>
-                    {latestRun.status}
-                  </span>
-                )}
-              </div>
+              {isLoginView ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+            </button>
+          </div>
+        </form>
 
-              <div className="text-xs text-slate-400 flex justify-between">
-                <span>Steps: {wf.workflow_steps?.length || 0}</span>
-                <span>Created: {new Date(wf.created_at).toLocaleDateString()}</span>
-              </div>
-            </Link>
-          );
-        })}
       </div>
     </div>
   );
