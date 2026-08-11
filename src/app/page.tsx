@@ -18,21 +18,20 @@ export default function LoginPage() {
     e.preventDefault();
     
     if (isLoginView) {
-      const { isSuccess } = await signInEmailPassword(email, password);
-      if (isSuccess) {
-        router.push("/"); // 🚀 This redirects you to the main page!
+      const { error } = await signInEmailPassword(email, password);
+      if (!error) {
+        router.push("/");
       }
     } else {
-      const { isSuccess } = await signUpEmailPassword(email, password);
-      if (isSuccess) {
-        router.push("/"); // 🚀 This redirects you to the main page!
+      const { error } = await signUpEmailPassword(email, password);
+      if (!error) {
+        router.push("/");
       }
     }
   };
 
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "80vh", padding: "20px" }}>
-      {/* We are using the 'card' class we created in globals.css */}
       <div className="card" style={{ width: "100%", maxWidth: "400px" }}>
         
         <h2 style={{ textAlign: "center", marginBottom: "2rem" }}>
@@ -62,14 +61,12 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Display Errors if they happen */}
           {(signInError || signUpError) && (
             <p style={{ color: "#ef4444", fontSize: "0.875rem", marginBottom: "1rem", textAlign: "center" }}>
               {signInError?.message || signUpError?.message}
             </p>
           )}
 
-          {/* Buttons Layout */}
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <button type="submit" disabled={isSignInLoading || isSignUpLoading}>
               {isSignInLoading || isSignUpLoading 
